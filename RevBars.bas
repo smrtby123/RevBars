@@ -1,4 +1,3 @@
-Attribute VB_Name = "NewMacros"
 'Option Explicit
 '***************************************************************
 'Variables for backing up the current Review settings
@@ -46,29 +45,29 @@ Set exportDoc = GetObject(myPath)
 End If
 slashType = checkSlash(myPath) 'Store the correct type of slash for the path, link or local
 docName = Left$(ActiveDocument.Name, (InStrRev(ActiveDocument.Name, ".") - 1)) 'gets the name of the file without the extension
-'tempName = docName & "-temp"
-tempPath = (Environ$("TEMP") & "\" & docName & ".docx")
+
+
+tempPath = (Environ$("TEMP") & "\" & docName & ".docx") 'Saves file to the windows default temp folder, other locations give a write error.
 If fileExists(tempPath) <> False Then 'Check if Temp File already exists
-'Application.Documents(tempPath).Activate 'Tries to activate temp file if it is already open
-Set tempDoc = GetObject(tempPath)
-tempDoc.Close SaveChanges:=WdSaveOptions.wdDoNotSaveChanges
+Set tempDoc = GetObject(tempPath) 'Makes the previous temp doc the active document
+tempDoc.Close SaveChanges:=WdSaveOptions.wdDoNotSaveChanges 'Closes old file if still open, happens sometimes with errors
 Kill (tempPath) 'Delete existing temp file
 End If
-'doc.Application.Activate
 On Error GoTo tempSaveFail
-Set tempDoc = Documents.Add(myPath)
+Set tempDoc = Documents.Add(myPath) 'Sets the current doc as the active temp doc
 tempDoc.SaveAs2 FileName:=tempPath, _
-    FileFormat:=wdFormatDocumentDefault, AddToRecentFiles:=False
+    FileFormat:=wdFormatDocumentDefault, AddToRecentFiles:=False 'Saveas in the temp location
 On Error GoTo 0
-tempDoc.ActiveWindow.Visible = False
+tempDoc.ActiveWindow.Visible = False 'Makes it so you can't see the temp file when it reopens
 
-
+'*************************************************************************************************
 'Set full filename to PDF extension to allow for check of existing file
+On Error GoTo uploadFail
 fullFile = currentFolder & slashType & docName & ".pdf"
 If isCloud = True Then
     uniqueName = Not CheckUrlExists(fullFile) 'Check if PDF file already exists in cloud link.  If link is valid, Unique set to FALSE
 Else
-    uniqueName = Not fileExists(fullFile)
+    uniqueName = Not fileExists(fullFile) 'Checks in the original folder for existing PDF if the file is not a cloud link
 End If
 
 '**********************************************************************************
@@ -77,7 +76,7 @@ End If
 On Error GoTo uniqueNameFail
 Select Case isCloud
  Case True
-    Do While uniqueName = False                                  'separate loop for the cloud save name check
+    Do While uniqueName = False 'separate loop for the cloud save name check
        UserAnswer = MsgBox("Cloud PDF Already Exists! Click " & _
        "[Yes] to override. Click [No] to Rename.", vbYesNoCancel)
             If UserAnswer = vbYes Then
@@ -180,6 +179,36 @@ Kill (tempPath) 'Delete Temp File
   End If
   
   MsgBox "PDF Saved in the Folder: " & FolderName
+'**********************************************************************************
+'Reset formatting for tracked changes
+      With Options
+        .InsertedTextMark = wdInsertedTextMarkColorOnly
+        .InsertedTextColor = wdByAuthor
+        .DeletedTextMark = wdDeletedTextMarkStrikeThrough
+        .DeletedTextColor = wdByAuthor
+        .RevisedPropertiesMark = wdRevisedPropertiesMarkColorOnly
+        .RevisedPropertiesColor = wdBlue
+        .RevisedLinesMark = wdRevisedLinesMarkRightBorder
+        .CommentsColor = wdAuto
+        .RevisionsBalloonPrintOrientation = wdBalloonPrintOrientationPreserve
+    End With
+    ActiveWindow.View.RevisionsMode = wdInLineRevisions
+    With Options
+        .MoveFromTextMark = wdMoveFromTextMarkStrikeThrough
+        .MoveFromTextColor = wdByAuthor
+        .MoveToTextMark = wdMoveToTextMarkColorOnly
+        .MoveToTextColor = wdBlue
+        .InsertedCellColor = wdCellColorLightBlue
+        .MergedCellColor = wdCellColorLightYellow
+        .DeletedCellColor = wdCellColorPink
+        .SplitCellColor = wdCellColorLightOrange
+    End With
+    With ActiveDocument
+        .TrackMoves = True
+        .TrackFormatting = True
+    End With
+   
+  
 Exit Sub
 '**********************************************************************************
 'Error Handlers
@@ -198,6 +227,12 @@ Resume ExitSub
 
 tempSaveFail:
 MsgBox "There was an issue saving the temporary file.: " & Err.Number & Err.Description
+tempDoc.Close SaveChanges:=WdSaveOptions.wdDoNotSaveChanges
+Kill (tempPath)
+Resume ExitSub
+
+uploadFail:
+MsgBox "There was an issue uploading the file: " & Err.Number & Err.Description
 tempDoc.Close SaveChanges:=WdSaveOptions.wdDoNotSaveChanges
 Kill (tempPath)
 Resume ExitSub
@@ -276,4 +311,35 @@ Private Sub refUpdate(ByVal actDoc As Object)
     Application.ScreenUpdating = True
 End Sub
 
-
+Sub resetsettings()
+'
+' resetsettings Macro
+'
+'
+    With Options
+        .InsertedTextMark = wdInsertedTextMarkColorOnly
+        .InsertedTextColor = wdByAuthor
+        .DeletedTextMark = wdDeletedTextMarkStrikeThrough
+        .DeletedTextColor = wdByAuthor
+        .RevisedPropertiesMark = wdRevisedPropertiesMarkColorOnly
+        .RevisedPropertiesColor = wdBlue
+        .RevisedLinesMark = wdRevisedLinesMarkRightBorder
+        .CommentsColor = wdAuto
+        .RevisionsBalloonPrintOrientation = wdBalloonPrintOrientationPreserve
+    End With
+    ActiveWindow.View.RevisionsMode = wdInLineRevisions
+    With Options
+        .MoveFromTextMark = wdMoveFromTextMarkStrikeThrough
+        .MoveFromTextColor = wdByAuthor
+        .MoveToTextMark = wdMoveToTextMarkColorOnly
+        .MoveToTextColor = wdBlue
+        .InsertedCellColor = wdCellColorLightBlue
+        .MergedCellColor = wdCellColorLightYellow
+        .DeletedCellColor = wdCellColorPink
+        .SplitCellColor = wdCellColorLightOrange
+    End With
+    With ActiveDocument
+        .TrackMoves = True
+        .TrackFormatting = True
+    End With
+End Sub
