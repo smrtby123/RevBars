@@ -1,5 +1,3 @@
-Attribute VB_Name = "NewMacros1"
-'**************************************************************
 'Variables for backing up the current Review settings
 Dim CommentsColor_backup As Integer
 Dim DeletedTextColor_backup As Integer
@@ -23,7 +21,8 @@ Dim uniqueName As Boolean 'Used to check if the filename PDF already exists in t
 Dim slashType As String 'Used to store the correct Slash for the path.  Links get "/", local folders get "\"
 Dim fullFile As String 'Used to store the full file name plus extension
 Dim tempDoc As Document 'temp document to delete comments
-Dim tempPath As String
+Dim tempPath As String 'path to temp files locally
+Dim tempName As String 'temp name to prevent duplicate errors
 
 Sub Revbars()
 Attribute Revbars.VB_ProcData.VB_Invoke_Func = "Normal.NewMacros.Revbars"
@@ -46,7 +45,7 @@ Attribute Revbars.VB_ProcData.VB_Invoke_Func = "Normal.NewMacros.Revbars"
         RevisedPropertiesColor_backup = Options.RevisedPropertiesColor 'Default Value of -1
         RevisedPropertiesMark_backup = Options.RevisedPropertiesMark 'Default Value of 5
         RevisionBalloon_backup = Options.RevisionsBalloonPrintOrientation 'Default Value of 1
-
+On Error GoTo 0
     
 '**********************************************************************************
 uniqueName = False 'Sets UniqueName to FALSE as the default, and the checks set it to True and execute PDF export
@@ -71,7 +70,7 @@ If InStr(myPath, "\") = 0 And isCloud = False Then 'Check if file is saved local
       End If
 End If
 
-currentFolder = ActiveDocument.Path & slashType 'adds the right slash type to the end of the document path, used to create PDF filesave path
+currentFolder = ActiveDocument.path & slashType 'adds the right slash type to the end of the document path, used to create PDF filesave path
 docName = ActiveDocument.Name
 docName = Left(docName, (InStrRev(docName, ".") - 1)) 'gets the name of the file without the extension
 
@@ -106,9 +105,8 @@ Select Case isCloud
     Loop
 'Local file save rename loop
 Case False
-  Do While uniqueName = False
-    If Len(Dir(fullFile)) <> 0 Then
-      UserAnswer = MsgBox("Local File Already Exists! Click " & _
+    Do While uniqueName = False
+       UserAnswer = MsgBox("Local File Already Exists! Click " & _
        "[Yes] to override. Click [No] to Rename.", vbYesNoCancel)
       
           If UserAnswer = vbYes Then
@@ -117,23 +115,19 @@ Case False
             Do
                 'Retrieve New File Name
                 docName = InputBox("Provide New File Name " & _
-             "(will ask again if you provide an invalid file name)", _
-             "Enter File Name", docName)
-          
-          'Exit if User Wants To
-            If docName = "False" Or docName = "" Then Exit Sub
-        Loop While ValidFileName(docName) = False
-      Else
-        Exit Sub 'Cancel
-      End If
-    Else
-      uniqueName = True
-    End If
-  Loop
-  Case Else
-  End Select
-
-
+                    "(will ask again if you provide an invalid file name)", _
+                    "Enter File Name", docName)
+                fullFile = currentFolder & docName & ".pdf"
+                uniqueName = Not fileExists(fullFile)
+                'Exit if User Wants To
+                    If docName = "False" Or docName = "" Then Exit Sub
+            Loop While ValidFileName(docName) = False
+          Else
+            Exit Sub 'Cancel
+          End If
+    Loop
+End Select
+On Error GoTo 0
 
 '**********************************************************************************
 'This option sets the markup to show only inline, no comment balloons or formatting
@@ -158,32 +152,44 @@ Case False
     End With
     
 '**********************************************************************************
+'Comments do not export correctly and so need to be deleted before the PDF is created
+'Creates a temp file copy of the active doc, deletes all comments, and exports to PDF using the original path and name
+On Error GoTo tempSaveFail
+tempName = docName & "-temp"
+tempPath = (Environ("TEMP") & "\" & tempName & ".docx")
+If fileExists(tempPath) <> False Then
+Application.Documents(tempPath).Activate
+ActiveDocument.Close SaveChanges:=WdSaveOptions.wdDoNotSaveChanges
+Kill (tempPath)
+Application.Documents(myPath).Activate
+End If
+'doc.Application.Activate
+Set doc = Documents.Add(ActiveDocument.FullName)
+ActiveDocument.SaveAs2 FileName:=tempPath, _
+    FileFormat:=wdFormatDocumentDefault, AddToRecentFiles:=False
+On Error GoTo 0
+doc.ActiveWindow.Visible = False
+On Error GoTo noComments
+ActiveDocument.DeleteAllComments
+On Error GoTo 0
+'**********************************************************************************
 'Automatic link updates sometimes show tracked changes when they refresh
 'Runs the refUpdate function to refresh the cross-references, TOC, etc without tracked changes
 refUpdate
 '**********************************************************************************
-'Comments do not export correctly and so need to be deleted before the PDF is created
-'Creates a temp file copy of the active doc, deletes all comments, and exports to PDF using the original path and name
-On Error GoTo tempSaveFail
-tempPath = (Environ("TEMP") & "\" & docName & ".docx")
-Set doc = Documents.Add(ActiveDocument.FullName)
-'doc.Application.Activate
-ActiveDocument.SaveAs2 FileName:=tempPath, _
-    FileFormat:=wdFormatDocumentDefault, AddToRecentFiles:=False
-doc.ActiveWindow.Visible = False
-ActiveDocument.DeleteAllComments
-'**********************************************************************************
 'Save As PDF Document
 On Error GoTo ProblemSaving
     ActiveDocument.ExportAsFixedFormat _
-     OutputFileName:=currentFolder & docName & ".pdf", _
+     OutputFileName:=fullFile, _
      OpenAfterExport:=False, _
      ExportFormat:=wdExportFormatPDF, _
      Item:=wdExportDocumentWithMarkup
+On Error GoTo 0
 'Closes the temporary document
 ActiveDocument.Close SaveChanges:=WdSaveOptions.wdDoNotSaveChanges
+Kill (tempPath) 'Delete Temp File
 'Activates the original doc
-Documents(myPath).Activate
+Application.Documents(myPath).Activate
 '**********************************************************************************
 'Resets the tracked changes settings based on the backups
 
@@ -211,7 +217,7 @@ Documents(myPath).Activate
 'Confirm Save To User
   If isCloud = False Then
   With ActiveDocument
-    FolderName = Mid(.Path, InStrRev(.Path, "\") + 1, Len(.Path) - InStrRev(.Path, "\"))
+    FolderName = Mid(.path, InStrRev(.path, "\") + 1, Len(.path) - InStrRev(.path, "\"))
   End With
   Else: FolderName = currentFolder 'sets just to URL
   FolderName = Replace(FolderName, "%", " ") 'replace % characters from URL with regular spaces for readability
@@ -235,7 +241,13 @@ MsgBox "Error with Updated Name, Check path and try again" & Err.Description
 Resume ExitSub
 
 tempSaveFail:
-MsgBox "There was an issue saving the temporary file.: " & Err.Description
+MsgBox "There was an issue saving the temporary file.: " & Err.Number & Err.Description
+ActiveDocument.Close SaveChanges:=WdSaveOptions.wdDoNotSaveChanges
+Kill (tempPath)
+Resume ExitSub
+
+noComments:
+MsgBox "No Comments To Delete"
 Resume Next
 
 ProblemSaving:
@@ -255,7 +267,6 @@ End Sub
 Function ValidFileName(ByVal FileName As String) As Boolean
 ValidFileName = Not (FileName Like "*[\/:*?<>|[""]*" Or FileName Like "*]*")
 End Function
-
 Function checkSlash(xLink As String) As String
 If InStr(xLink, "/") <> 0 Then
 checkSlash = "/"
@@ -289,11 +300,19 @@ MsgBox "Link Check Error"
     CheckUrlExists = False
     
 End Function
+Function fileExists(path As String)
+    If Len(Dir(path)) <> 0 Then
+        fileExists = True
+    Else
+        fileExists = False
+    End If
+End Function
+
 
 Function checkCloud(xLink As String) As Boolean
 '**********************************************************
 'Check if the current path (xLink) is a cloud save location.
-'Local folders use "\", links use "/"
+'Local folders use "\", links use "http"
 '**********************************************************
 If InStr(xLink, "http") = 0 Then
     checkCloud = False
@@ -313,12 +332,3 @@ Function refUpdate()
     Selection.Fields.Update 'Replicates F9
     Application.ScreenUpdating = True
 End Function
-
-Function delcomments()
-Dim i As comment
-For Each i In ActiveDocument.Comments
-Selection.Comments(i).Delete
-'i.Reference.InsertAfter " [" & i.Range.Text & "]"
-Next i
-End Function
-
