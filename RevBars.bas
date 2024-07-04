@@ -5,19 +5,6 @@ Attribute VB_Name = "RevBarPDF"
 'Variables for backing up the current Review settings
 Sub Revbars()
 Attribute Revbars.VB_ProcData.VB_Invoke_Func = "Normal.NewMacros.Revbars"
-Dim CommentsColor_backup As Long
-Dim DeletedTextColor_backup As Long
-Dim DeletedTextMark_backup As Long
-Dim InsertedTextColor_backup As Long
-Dim InsertedTextMark_backup As Long
-Dim MoveFromTextColor_backup As Long
-Dim MoveFromTextMark_backup As Long
-Dim MoveToTextColor_backup As Long
-Dim MoveToTextMark_backup As Long
-Dim RevisedLinesMark_backup As Long
-Dim RevisedPropertiesColor_backup As Long
-Dim RevisedPropertiesMark_backup As Long
-Dim RevisionBalloon_backup As Long
 '***************************************************************
 Dim UserAnswer As Integer 'message box response variable
 Dim isCloud As Boolean 'Checks if the current folder is a cloud drive
@@ -35,60 +22,62 @@ Dim exportDoc As Object 'Doc that needs exporting
 'This macro sets the proper formatting for markups and exports a PDF file
 'that shows only the rev bars on the right hand side and no other markups.
 '**********************************************************************************
-'Backup current settings for markup views
- On Error GoTo colorError 'Error check for colors that give an overflow error when set to By Author, see below
-        CommentsColor_backup = Options.CommentsColor ' Default Value of 0
-        DeletedTextColor_backup = Options.DeletedTextColor 'Default Value of -1
-        DeletedTextMark_backup = Options.DeletedTextMark 'Default Value of 9
-        InsertedTextColor_backup = Options.InsertedTextColor 'Default Value of -1
-        InsertedTextMark_backup = Options.InsertedTextMark 'Default Value of 5
-        MoveFromTextColor_backup = Options.MoveFromTextColor 'if set to ByAuthor throws an error and overflow issue
-        MoveFromTextMark_backup = Options.MoveFromTextMark 'Default Value of 10
-        MoveToTextColor_backup = Options.MoveToTextColor 'if set to ByAuthor throws an error and overflow issue
-        MoveToTextMark_backup = Options.MoveToTextMark 'Default Value of 5
-        RevisedLinesMark_backup = Options.RevisedLinesMark 'Default Value of 2
-        RevisedPropertiesColor_backup = Options.RevisedPropertiesColor 'Default Value of -1
-        RevisedPropertiesMark_backup = Options.RevisedPropertiesMark 'Default Value of 5
-        RevisionBalloon_backup = Options.RevisionsBalloonPrintOrientation 'Default Value of 1
-On Error GoTo 0
-    
-'**********************************************************************************
 uniqueName = False 'Sets UniqueName to FALSE as the default, and the checks set it to True and execute PDF export
     'UniqueName = FALSE, the PDF already exists and the function has you rename or exit
     'UniqueName = TRUE, there is nothing to overwrite and so exports the PDF to the active directory
-myPath = ActiveDocument.FullName 'Gets full name of current document
-Set exportDoc = GetObject(myPath)
-isCloud = checkCloud(myPath) 'Check if the file is saved to a cloud location
-slashType = checkSlash(myPath) 'Store the correct type of slash for the path, link or local
-
+currentFolder = ActiveDocument.path
+If currentFolder = vbNullString And isCloud = False Then 'Check if file is saved locally AND is not a cloud save
 'Checks for a backslash within the file path.
 'If empty, the file isn't saved locally, and a prompt will open to save file
-If InStr(myPath, "\") = 0 And isCloud = False Then 'Check if file is saved locally AND is not a cloud save
    UserAnswer = MsgBox("File Is Not Saved! Click " & _
      "[Yes] to Save As. Click [No] to Exit.", vbYesNoCancel)
       If UserAnswer = vbYes Then
         ShowSaveAsDialog
-        myPath = exportDoc.FullName 'set the new doc path after save
+        'myPath = ActiveDocument.FullName 'set the new doc path after save
       ElseIf UserAnswer = vbNo Then
         MsgBox "Save File and Try Again"
         Exit Sub
       End If
 End If
+myPath = ActiveDocument.FullName 'Gets full name of current document
+isCloud = checkCloud(myPath) 'Check if the file is saved to a cloud location
+If isCloud = False Then
+Set exportDoc = GetObject(myPath)
+End If
+slashType = checkSlash(myPath) 'Store the correct type of slash for the path, link or local
+docName = Left$(ActiveDocument.Name, (InStrRev(ActiveDocument.Name, ".") - 1)) 'gets the name of the file without the extension
+'tempName = docName & "-temp"
+tempPath = (Environ$("TEMP") & "\" & docName & ".docx")
+If fileExists(tempPath) <> False Then 'Check if Temp File already exists
+'Application.Documents(tempPath).Activate 'Tries to activate temp file if it is already open
+Set tempDoc = GetObject(tempPath)
+tempDoc.Close SaveChanges:=WdSaveOptions.wdDoNotSaveChanges
+Kill (tempPath) 'Delete existing temp file
+End If
+'doc.Application.Activate
+On Error GoTo tempSaveFail
+Set tempDoc = Documents.Add(myPath)
+tempDoc.SaveAs2 FileName:=tempPath, _
+    FileFormat:=wdFormatDocumentDefault, AddToRecentFiles:=False
+On Error GoTo 0
+tempDoc.ActiveWindow.Visible = False
 
-currentFolder = exportDoc.path & slashType 'adds the right slash type to the end of the document path, used to create PDF filesave path
-docName = exportDoc.Name
-docName = Left$(docName, (InStrRev(docName, ".") - 1)) 'gets the name of the file without the extension
 
 'Set full filename to PDF extension to allow for check of existing file
-fullFile = currentFolder & docName & ".pdf"
-If isCloud = True Then uniqueName = Not CheckUrlExists(fullFile) 'Check if PDF file already exists in cloud link.  If link is valid, Unique set to FALSE
+fullFile = currentFolder & slashType & docName & ".pdf"
+If isCloud = True Then
+    uniqueName = Not CheckUrlExists(fullFile) 'Check if PDF file already exists in cloud link.  If link is valid, Unique set to FALSE
+Else
+    uniqueName = Not fileExists(fullFile)
+End If
+
 '**********************************************************************************
 'Loop to rename the file if a PDF already exists.
 'Two cases, one for cloud save, one for local save (isCloud is True or False)
 On Error GoTo uniqueNameFail
 Select Case isCloud
  Case True
-    Do While uniqueName = False 'separate loop for the cloud save name check
+    Do While uniqueName = False                                  'separate loop for the cloud save name check
        UserAnswer = MsgBox("Cloud PDF Already Exists! Click " & _
        "[Yes] to override. Click [No] to Rename.", vbYesNoCancel)
             If UserAnswer = vbYes Then
@@ -100,8 +89,7 @@ Select Case isCloud
                     "(will ask again if you provide an invalid file name)", _
                     "Enter File Name", docName)
                      fullFile = currentFolder & docName & ".pdf"
-                     uniqueName = Not CheckUrlExists(fullFile)
-          'Exit if User Wants To
+                    'Exit if User Wants To
                 If docName = "False" Or docName = vbNullString Then Exit Sub
                 Loop While ValidFileName(docName) = False
             Else
@@ -159,21 +147,7 @@ On Error GoTo 0
 '**********************************************************************************
 'Comments do not export correctly and so need to be deleted before the PDF is created
 'Creates a temp file copy of the active doc, deletes all comments, and exports to PDF using the original path and name
-On Error GoTo tempSaveFail
-tempName = docName & "-temp"
-tempPath = (Environ$("TEMP") & "\" & tempName & ".docx")
-If fileExists(tempPath) <> False Then 'Check if Temp File already exists
-'Application.Documents(tempPath).Activate 'Tries to activate temp file if it is already open
-Set tempDoc = GetObject(tempPath)
-tempDoc.Close SaveChanges:=WdSaveOptions.wdDoNotSaveChanges
-Kill (tempPath) 'Delete existing temp file
-End If
-'doc.Application.Activate
-Set tempDoc = Documents.Add(exportDoc.FullName)
-tempDoc.SaveAs2 FileName:=tempPath, _
-    FileFormat:=wdFormatDocumentDefault, AddToRecentFiles:=False
-On Error GoTo 0
-tempDoc.ActiveWindow.Visible = False
+
 On Error GoTo noComments
 tempDoc.DeleteAllComments
 On Error GoTo 0
@@ -184,7 +158,7 @@ refUpdate tempDoc
 '**********************************************************************************
 'Save As PDF Document
 On Error GoTo ProblemSaving
-    exportDoc.ExportAsFixedFormat _
+    tempDoc.ExportAsFixedFormat _
      OutputFileName:=fullFile, _
      OpenAfterExport:=False, _
      ExportFormat:=wdExportFormatPDF, _
@@ -195,29 +169,6 @@ tempDoc.Close SaveChanges:=WdSaveOptions.wdDoNotSaveChanges
 Kill (tempPath) 'Delete Temp File
 'Activates the original doc
 'Application.Documents(myPath).Activate
-'**********************************************************************************
-'Resets the tracked changes settings based on the backups
-
-    With exportDoc
-      .TrackFormatting = True
-      .TrackRevisions = True
-    End With
-    With Options
-        .CommentsColor = CommentsColor_backup
-        .DeletedTextColor = DeletedTextColor_backup
-        .DeletedTextMark = DeletedTextMark_backup
-        .InsertedTextColor = InsertedTextColor_backup
-        .InsertedTextMark = InsertedTextMark_backup
-        .MoveFromTextColor = MoveFromTextColor_backup
-        .MoveFromTextMark = MoveFromTextMark_backup
-        .MoveToTextColor = MoveToTextColor_backup
-        .MoveToTextMark = MoveToTextMark_backup
-        .RevisedLinesMark = RevisedLinesMark_backup
-        .RevisedPropertiesColor = RevisedPropertiesColor_backup
-        .RevisedPropertiesMark = RevisedPropertiesMark_backup
-    End With
- ActiveWindow.View.MarkupMode = wdInLineRevisions
- ActiveWindow.View.ShowComments = True
 '**********************************************************************************
 'Confirm Save To User
   If isCloud = False Then
@@ -265,7 +216,7 @@ End Sub
 Private Sub ShowSaveAsDialog()
 'Initiates Save As dialog when the program detects the file isn't saved locally.
   With Dialogs(wdDialogFileSaveAs)
-        .format = wdFormatDocument
+        .Format = wdFormatDocumentDefault
         .Show
     End With
 End Sub
@@ -286,13 +237,13 @@ Private Function CheckUrlExists(ByVal url As String) As Boolean
 '*********************************************************
     On Error GoTo CheckUrlExists_Error
     
-    Dim xmlhttp As Object
-    Set xmlhttp = CreateObject("MSXML2.XMLHTTP")
+    Dim tempPage As Object
+    Set tempPage = CreateObject("MSXML2.XMLHTTP")
  
-    xmlhttp.Open "HEAD", url, False
-    xmlhttp.send
+    tempPage.Open "HEAD", url, False
+    tempPage.send
     
-    CheckUrlExists = xmlhttp.Status = 200 'Checks if response from file URL
+    CheckUrlExists = tempPage.Status = 200 'Checks if response from file URL
    
     Exit Function
     
