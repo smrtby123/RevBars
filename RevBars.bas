@@ -1,10 +1,9 @@
-Attribute VB_Name = "RevBarPDF"
-
+Attribute VB_Name = "NewMacros"
 'Option Explicit
 '***************************************************************
 'Variables for backing up the current Review settings
 Sub Revbars()
-Attribute Revbars.VB_ProcData.VB_Invoke_Func = "Normal.NewMacros.Revbars"
+
 '***************************************************************
 Dim UserAnswer As Integer 'message box response variable
 Dim isCloud As Boolean 'Checks if the current folder is a cloud drive
@@ -40,6 +39,7 @@ If currentFolder = vbNullString And isCloud = False Then 'Check if file is saved
       End If
 End If
 myPath = ActiveDocument.FullName 'Gets full name of current document
+currentFolder = ActiveDocument.path
 isCloud = checkCloud(myPath) 'Check if the file is saved to a cloud location
 If isCloud = False Then
 Set exportDoc = GetObject(myPath)
@@ -124,7 +124,7 @@ On Error GoTo 0
 
 '**********************************************************************************
 'This option sets the markup to show only inline, no comment balloons or formatting
- ActiveWindow.View.MarkupMode = wdInLineRevisions
+ tempDoc.ActiveWindow.View.MarkupMode = wdInLineRevisions
 
 '**********************************************************************************
 'Set the options for markup views to hide everything but rev bars on the right hand side
@@ -275,3 +275,5 @@ Private Sub refUpdate(ByVal actDoc As Object)
     Selection.Fields.Update 'Replicates F9
     Application.ScreenUpdating = True
 End Sub
+
+
