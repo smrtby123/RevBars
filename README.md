@@ -1,13 +1,8 @@
-.. _intro-start:
-
 Introduction
 ============
 
 This Word Macro formats and exports the current document to a clean PDF with only the 
 right hand bars showing tracked changes.
-
-.. _user-manual-start:
-
 
 User Manual
 ===========
