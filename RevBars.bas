@@ -151,6 +151,18 @@ On Error GoTo noComments
 tempDoc.DeleteAllComments
 On Error GoTo 0
 '**********************************************************************************
+'Fixes formatting so that there are only single spaces after periods.
+'**********************************************************************************
+With tempDoc
+With Selection.Find 
+ .ClearFormatting 
+ .Text = ".  " 
+ .Replacement.ClearFormatting 
+ .Replacement.Text = ". " 
+ .Execute Replace:=wdReplaceAll, Forward:=True, _ 
+ Wrap:=wdFindContinue 
+End With
+'**********************************************************************************
 'Automatic link updates sometimes show tracked changes when they refresh
 'Runs the refUpdate function to refresh the cross-references, TOC, etc without tracked changes
 refUpdate tempDoc
