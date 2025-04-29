@@ -1,10 +1,8 @@
 'Option Explicit
-'***************************************************************
-'Variables for backing up the current Review settings
-Sub Revbars()
+Sub RevBars()
 
 '***************************************************************
-Dim UserAnswer As Integer 'message box response variable
+Dim userAnswer As Integer 'message box response variable
 Dim isCloud As Boolean 'Checks if the current folder is a cloud drive
 Dim currentFolder As String 'Derives the current folder the document is in.  Also used to check if the file is saved locally
 Dim docName As String ' Used to store the FileName without an extension
@@ -25,14 +23,12 @@ uniqueName = False 'Sets UniqueName to FALSE as the default, and the checks set 
     'UniqueName = TRUE, there is nothing to overwrite and so exports the PDF to the active directory
 currentFolder = ActiveDocument.path
 If currentFolder = vbNullString And isCloud = False Then 'Check if file is saved locally AND is not a cloud save
-'Checks for a backslash within the file path.
-'If empty, the file isn't saved locally, and a prompt will open to save file
-   UserAnswer = MsgBox("File Is Not Saved! Click " & _
+'Checks if the ActiveDoc path is null. If there is no path, the file isn't saved locally, and a prompt will open to save file
+   userAnswer = MsgBox("File Is Not Saved! Click " & _
      "[Yes] to Save As. Click [No] to Exit.", vbYesNoCancel)
-      If UserAnswer = vbYes Then
+      If userAnswer = vbYes Then
         ShowSaveAsDialog
-        'myPath = ActiveDocument.FullName 'set the new doc path after save
-      ElseIf UserAnswer = vbNo Then
+      ElseIf userAnswer = vbNo Then
         MsgBox "Save File and Try Again"
         Exit Sub
       End If
@@ -77,11 +73,11 @@ On Error GoTo uniqueNameFail
 Select Case isCloud
  Case True
     Do While uniqueName = False 'separate loop for the cloud save name check
-       UserAnswer = MsgBox("Cloud PDF Already Exists! Click " & _
+       userAnswer = MsgBox("Cloud PDF Already Exists! Click " & _
        "[Yes] to override. Click [No] to Rename.", vbYesNoCancel)
-            If UserAnswer = vbYes Then
+            If userAnswer = vbYes Then
                 uniqueName = True
-            ElseIf UserAnswer = vbNo Then
+            ElseIf userAnswer = vbNo Then
                 Do
                     'Retrieve New File Name
                     docName = InputBox("Provide New File Name " & _
@@ -98,12 +94,12 @@ Select Case isCloud
 'Local file save rename loop
 Case False
     Do While uniqueName = False
-       UserAnswer = MsgBox("Local PDF Already Exists! Click " & _
+       userAnswer = MsgBox("Local PDF Already Exists! Click " & _
        "[Yes] to override. Click [No] to Rename.", vbYesNoCancel)
       
-          If UserAnswer = vbYes Then
+          If userAnswer = vbYes Then
             uniqueName = True
-          ElseIf UserAnswer = vbNo Then
+          ElseIf userAnswer = vbNo Then
             Do
                 'Retrieve New File Name
                 docName = InputBox("Provide New File Name " & _
@@ -316,17 +312,18 @@ Private Sub refUpdate(ByVal actDoc As Object)
 'Selects entire document and updates all references while tracked changes are off.
 'Simulates Ctrl-A + F9
 '***********************************************************************************
-    actDoc.TrackRevisions = False '[Turn off Tracked Changes]
-    Application.ScreenUpdating = False '[Makes it so you can't see the refresh]
+    actDoc.TrackRevisions = False 'Turn off Tracked Changes
+    Application.ScreenUpdating = False 'Makes it so you can't see the refreshing screen
     Selection.WholeStory 'Selects entire doc
-    Selection.Fields.Update 'Replicates F9
+    Selection.Fields.Update 'Replicates F9 to refresh links and references
     Application.ScreenUpdating = True
 End Sub
+'***************************************************************
 
-Sub resetsettings()
-'
-' resetsettings Macro
-'
+Sub ResetSettings()
+''***************************************************************
+' Macro to reset the tracked changes settings back to preferred default
+''***************************************************************
 '
     With Options
         .InsertedTextMark = wdInsertedTextMarkColorOnly
