@@ -24,6 +24,8 @@ uniqueName = False 'Sets UniqueName to FALSE as the default, and the checks set 
     'UniqueName = FALSE, the PDF already exists and the function has you rename or exit
     'UniqueName = TRUE, there is nothing to overwrite and so exports the PDF to the active directory
 currentFolder = ActiveDocument.path
+myPath = ActiveDocument.FullName 'Gets full name of current document
+isCloud = checkCloud(myPath) 'Check if the file is saved to a cloud location
 If currentFolder = vbNullString And isCloud = False Then 'Check if file is saved locally AND is not a cloud save
 'Checks for a backslash within the file path.
 'If empty, the file isn't saved locally, and a prompt will open to save file
@@ -37,9 +39,7 @@ If currentFolder = vbNullString And isCloud = False Then 'Check if file is saved
         Exit Sub
       End If
 End If
-myPath = ActiveDocument.FullName 'Gets full name of current document
-currentFolder = ActiveDocument.path
-isCloud = checkCloud(myPath) 'Check if the file is saved to a cloud location
+
 If isCloud = False Then
 Set exportDoc = GetObject(myPath)
 End If
