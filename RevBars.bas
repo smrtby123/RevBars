@@ -264,10 +264,11 @@ End Sub
 Private Sub ShowSaveAsDialog()
 'Initiates Save As dialog when the program detects the file isn't saved locally.
   With Dialogs(wdDialogFileSaveAs)
-        .Format = wdFormatDocumentDefault
+        .Format = wdFormatXMLDocument
         .Show
     End With
 End Sub
+
 Private Function ValidFileName(ByVal FileName As String) As Boolean
 ValidFileName = Not (FileName Like "*[\/:*?<>|[""]*" Or FileName Like "*]*")
 End Function
