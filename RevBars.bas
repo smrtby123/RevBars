@@ -162,6 +162,7 @@ With Selection.Find
  .Execute Replace:=wdReplaceAll, Forward:=True, _ 
  Wrap:=wdFindContinue 
 End With
+End With
 '**********************************************************************************
 'Automatic link updates sometimes show tracked changes when they refresh
 'Runs the refUpdate function to refresh the cross-references, TOC, etc without tracked changes
