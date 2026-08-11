@@ -1,7 +1,7 @@
 'Option Explicit
 '***************************************************************
 'Variables for backing up the current Review settings
-Sub Revbars()
+Sub Save_As_Tracked_PDF()
 
 '***************************************************************
 Dim UserAnswer As Integer 'message box response variable
