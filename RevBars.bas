@@ -5,7 +5,6 @@ Sub Save_As_Tracked_PDF()
 
 '***************************************************************
 Dim UserAnswer As Integer 'message box response variable
-Dim isCloud As Boolean 'Checks if the current folder is a cloud drive
 Dim currentFolder As String 'Derives the current folder the document is in.  Also used to check if the file is saved locally
 Dim docName As String ' Used to store the FileName without an extension
 Dim myPath As String 'The full path of the current file
@@ -23,24 +22,14 @@ Dim exportDoc As Object 'Doc that needs exporting
 uniqueName = False 'Sets UniqueName to FALSE as the default, and the checks set it to True and execute PDF export
     'UniqueName = FALSE, the PDF already exists and the function has you rename or exit
     'UniqueName = TRUE, there is nothing to overwrite and so exports the PDF to the active directory
-currentFolder = ActiveDocument.path
+currentFolder = ActiveDocument.Path
 myPath = ActiveDocument.FullName 'Gets full name of current document
-isCloud = checkCloud(myPath) 'Check if the file is saved to a cloud location
-If currentFolder = vbNullString And isCloud = False Then 'Check if file is saved locally AND is not a cloud save
-'Checks for a backslash within the file path.
-'If empty, the file isn't saved locally, and a prompt will open to save file
-   UserAnswer = MsgBox("File Is Not Saved! Click " & _
-     "[Yes] to Save As. Click [No] to Exit.", vbYesNoCancel)
-      If UserAnswer = vbYes Then
-        ShowSaveAsDialog
-        'myPath = ActiveDocument.FullName 'set the new doc path after save
-      ElseIf UserAnswer = vbNo Then
-        MsgBox "Save File and Try Again"
-        Exit Sub
-      End If
+MsgBox (currentFolder)
+If isSavedLocally(currentFolder) = False And isCloud(myPath) = False Then 'Check if file is saved locally AND is not a cloud save
+    PromptUserToSaveFile
 End If
 
-If isCloud = False Then
+If isCloud(myPath) = False Then
 Set exportDoc = GetObject(myPath)
 End If
 slashType = checkSlash(myPath) 'Store the correct type of slash for the path, link or local
@@ -64,7 +53,7 @@ tempDoc.ActiveWindow.Visible = False 'Makes it so you can't see the temp file wh
 'Set full filename to PDF extension to allow for check of existing file
 On Error GoTo uploadFail
 fullFile = currentFolder & slashType & docName & ".pdf"
-If isCloud = True Then
+If isCloud(myPath) = True Then
     uniqueName = Not CheckUrlExists(fullFile) 'Check if PDF file already exists in cloud link.  If link is valid, Unique set to FALSE
 Else
     uniqueName = Not fileExists(fullFile) 'Checks in the original folder for existing PDF if the file is not a cloud link
@@ -74,7 +63,7 @@ End If
 'Loop to rename the file if a PDF already exists.
 'Two cases, one for cloud save, one for local save (isCloud is True or False)
 On Error GoTo uniqueNameFail
-Select Case isCloud
+Select Case isCloud(myPath)
  Case True
     Do While uniqueName = False 'separate loop for the cloud save name check
        UserAnswer = MsgBox("Cloud PDF Already Exists! Click " & _
@@ -127,6 +116,7 @@ On Error GoTo 0
 
 '**********************************************************************************
 'Set the options for markup views to hide everything but rev bars on the right hand side
+With tempDoc
     With Options
         .MoveToTextColor = wdMoveToTextColorNone
         .MoveToTextMark = wdMoveToTextMarkHidden
@@ -142,7 +132,7 @@ On Error GoTo 0
         .CommentsColor = wdCommentsColorNone
         .RevisionsBalloonPrintOrientation = wdBalloonPrintOrientationPreserve
     End With
-    
+End With
 '**********************************************************************************
 'Comments do not export correctly and so need to be deleted before the PDF is created
 'Creates a temp file copy of the active doc, deletes all comments, and exports to PDF using the original path and name
@@ -154,13 +144,13 @@ On Error GoTo 0
 'Fixes formatting so that there are only single spaces after periods.
 '**********************************************************************************
 With tempDoc
-With Selection.Find 
- .ClearFormatting 
- .Text = ".  " 
- .Replacement.ClearFormatting 
- .Replacement.Text = ". " 
- .Execute Replace:=wdReplaceAll, Forward:=True, _ 
- Wrap:=wdFindContinue 
+With Selection.Find
+ .ClearFormatting
+ .Text = ".  "
+ .Replacement.ClearFormatting
+ .Replacement.Text = ". "
+ .Execute Replace:=wdReplaceAll, Forward:=True, _
+ Wrap:=wdFindContinue
 End With
 End With
 '**********************************************************************************
@@ -183,9 +173,9 @@ Kill (tempPath) 'Delete Temp File
 'Application.Documents(myPath).Activate
 '**********************************************************************************
 'Confirm Save To User
-  If isCloud = False Then
+  If isCloud(myPath) = False Then
   With exportDoc
-    FolderName = Mid$(.path, InStrRev(.path, "\") + 1, Len(.path) - InStrRev(.path, "\"))
+    FolderName = Mid$(.Path, InStrRev(.Path, "\") + 1, Len(.Path) - InStrRev(.Path, "\"))
   End With
   Else: FolderName = currentFolder 'sets just to URL
   FolderName = Replace(FolderName, "%", " ") 'replace % characters from URL with regular spaces for readability
@@ -261,14 +251,15 @@ Resume ExitSub
 
 '*************************************************************************************
 End Sub
-Private Sub ShowSaveAsDialog()
+
+Private Sub PromptUserToSaveFile()
 'Initiates Save As dialog when the program detects the file isn't saved locally.
   With Dialogs(wdDialogFileSaveAs)
         .Format = wdFormatXMLDocument
         .Show
+        
     End With
 End Sub
-
 Private Function ValidFileName(ByVal FileName As String) As Boolean
 ValidFileName = Not (FileName Like "*[\/:*?<>|[""]*" Or FileName Like "*]*")
 End Function
@@ -278,6 +269,12 @@ checkSlash = "/"
 ElseIf InStr(xLink, "\") <> 0 Then
 checkSlash = "\"
 End If
+End Function
+Private Function isSavedLocally(ByVal Path As String) As Boolean
+    If Path = vbNullString Then
+    isSavedLocally = False
+    Else: isSavedLocally = True
+    End If
 End Function
 Private Function CheckUrlExists(ByVal url As String) As Boolean
 '*********************************************************
@@ -302,10 +299,10 @@ CheckUrlExists = False
 Exit Function
     
 End Function
-Private Function fileExists(ByVal path As String) As Boolean
-    fileExists = Len(Dir(path))
+Private Function fileExists(ByVal Path As String) As Boolean
+    fileExists = Len(Dir(Path))
  End Function
-Private Function checkCloud(ByVal xLink As String) As Boolean
+Private Function isCloud(ByVal xLink As String) As Boolean
 '**********************************************************
 'Check if the current path (xLink) is a cloud save location.
 'Local folders use "\", links use "http"
@@ -325,7 +322,7 @@ Private Sub refUpdate(ByVal actDoc As Object)
     Application.ScreenUpdating = True
 End Sub
 
-Sub resetsettings()
+Sub Reset_Tracked_Settings()
 '
 ' resetsettings Macro
 '
