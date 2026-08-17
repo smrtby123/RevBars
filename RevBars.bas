@@ -24,11 +24,13 @@ uniqueName = False 'Sets UniqueName to FALSE as the default, and the checks set 
     'UniqueName = TRUE, there is nothing to overwrite and so exports the PDF to the active directory
 currentFolder = ActiveDocument.Path
 myPath = ActiveDocument.FullName 'Gets full name of current document
-MsgBox (currentFolder)
+
 If isSavedLocally(currentFolder) = False And isCloud(myPath) = False Then 'Check if file is saved locally AND is not a cloud save
     PromptUserToSaveFile
+    myPath = ActiveDocument.FullName
+    currentFolder = ActiveDocument.Path
 End If
-
+MsgBox (myPath)
 If isCloud(myPath) = False Then
 Set exportDoc = GetObject(myPath)
 End If
@@ -253,12 +255,28 @@ Resume ExitSub
 End Sub
 
 Private Sub PromptUserToSaveFile()
-'Initiates Save As dialog when the program detects the file isn't saved locally.
-  With Dialogs(wdDialogFileSaveAs)
+    Dim savedDoc As Document
+    'Initiates Save As dialog when the program detects the file isn't saved locally.
+    UserAnswer = MsgBox("File is Not Saved! Click " & _
+       "[Yes] to save. Click [No] to cancel.", vbYesNoCancel)
+            If UserAnswer = vbYes Then
+                SaveAndActivateDocument
+            ElseIf UserAnswer = vbNo Then
+                MsgBox ("Please Save File and Run Again")
+            End If
+End Sub
+Private Sub SaveAndActivateDocument()
+    With Dialogs(wdDialogFileSaveAs)
         .Format = wdFormatXMLDocument
         .Show
-        
     End With
+End Sub
+Private Sub askToSaveFile()
+    UserAnswer = MsgBox("Cloud PDF Already Exists! Click " & _
+       "[Yes] to override. Click [No] to Rename.", vbYesNoCancel)
+            If UserAnswer = vbYes Then
+                uniqueName = True
+            ElseIf UserAnswer = vbNo Then
 End Sub
 Private Function ValidFileName(ByVal FileName As String) As Boolean
 ValidFileName = Not (FileName Like "*[\/:*?<>|[""]*" Or FileName Like "*]*")
