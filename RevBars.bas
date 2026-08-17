@@ -26,9 +26,12 @@ currentFolder = ActiveDocument.Path
 myPath = ActiveDocument.FullName 'Gets full name of current document
 
 If isSavedLocally(currentFolder) = False And isCloud(myPath) = False Then 'Check if file is saved locally AND is not a cloud save
-    PromptUserToSaveFile
-    myPath = ActiveDocument.FullName
-    currentFolder = ActiveDocument.Path
+    documentSaved = PromptUserToSaveFile()
+    If documentSaved = True Then
+        myPath = ActiveDocument.FullName
+        currentFolder = ActiveDocument.Path
+    Else: Exit Sub
+    End If
 End If
 If isCloud(myPath) = False Then
 Set exportDoc = GetObject(myPath)
@@ -253,17 +256,20 @@ Resume ExitSub
 '*************************************************************************************
 End Sub
 
-Private Sub PromptUserToSaveFile()
+Private Function PromptUserToSaveFile() As Boolean
     Dim savedDoc As Document
     'Initiates Save As dialog when the program detects the file isn't saved locally.
     UserAnswer = MsgBox("File is Not Saved! Click " & _
        "[Yes] to save. Click [No] to cancel.", vbYesNoCancel)
             If UserAnswer = vbYes Then
+                PromptUserToSaveFile = True
                 SaveAndActivateDocument
             ElseIf UserAnswer = vbNo Then
                 MsgBox ("Please Save File and Run Again")
+                PromptUserToSaveFile = False
+            Exit Function
             End If
-End Sub
+End Function
 Private Sub SaveAndActivateDocument()
     With Dialogs(wdDialogFileSaveAs)
         .Format = wdFormatXMLDocument
