@@ -30,7 +30,6 @@ If isSavedLocally(currentFolder) = False And isCloud(myPath) = False Then 'Check
     myPath = ActiveDocument.FullName
     currentFolder = ActiveDocument.Path
 End If
-MsgBox (myPath)
 If isCloud(myPath) = False Then
 Set exportDoc = GetObject(myPath)
 End If
