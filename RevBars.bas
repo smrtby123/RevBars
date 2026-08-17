@@ -67,52 +67,35 @@ End If
 'Loop to rename the file if a PDF already exists.
 'Two cases, one for cloud save, one for local save (isCloud is True or False)
 On Error GoTo uniqueNameFail
-Select Case isCloud(myPath)
- Case True
-    Do While uniqueName = False 'separate loop for the cloud save name check
-       UserAnswer = MsgBox("Cloud PDF Already Exists! Click " & _
-       "[Yes] to override. Click [No] to Rename.", vbYesNoCancel)
-            If UserAnswer = vbYes Then
-                uniqueName = True
-            ElseIf UserAnswer = vbNo Then
-                Do
-                    'Retrieve New File Name
-                    docName = InputBox("Provide New File Name " & _
-                    "(will ask again if you provide an invalid file name)", _
-                    "Enter File Name", docName)
-                     fullFile = currentFolder & docName & ".pdf"
-                    'Exit if User Wants To
-                If docName = "False" Or docName = vbNullString Then Exit Sub
-                Loop While ValidFileName(docName) = False
+Do While uniqueName = False 'separate loop for the cloud save name check
+    UserAnswer = MsgBox("PDF Already Exists! Click " & _
+    "[Yes] to override. Click [No] to Rename.", vbYesNoCancel)
+    If UserAnswer = vbYes Then
+        uniqueName = True
+    ElseIf UserAnswer = vbNo Then
+        Do
+        'Retrieve New File Name
+            docName = InputBox("Provide New File Name " & _
+            "(will ask again if you provide an invalid file name)", _
+            "Enter File Name", docName)
+            fullFile = currentFolder & slashType & docName & ".pdf"
+            MsgBox (docName)
+            If isCloud(myPath) = True Then
+                uniqueName = Not CheckUrlExists(fullFile) 'Check if PDF file already exists in cloud link.  If link is valid, Unique set to FALSE
             Else
-                Exit Sub 'Cancel
+                uniqueName = Not fileExists(fullFile) 'Checks in the original folder for existing PDF if the file is not a cloud link
             End If
-    Loop
-'Local file save rename loop
-Case False
-    Do While uniqueName = False
-       UserAnswer = MsgBox("Local PDF Already Exists! Click " & _
-       "[Yes] to override. Click [No] to Rename.", vbYesNoCancel)
-      
-          If UserAnswer = vbYes Then
-            uniqueName = True
-          ElseIf UserAnswer = vbNo Then
-            Do
-                'Retrieve New File Name
-                docName = InputBox("Provide New File Name " & _
-                    "(will ask again if you provide an invalid file name)", _
-                    "Enter File Name", docName)
-                fullFile = currentFolder & docName & ".pdf"
-                uniqueName = Not fileExists(fullFile)
-                'Exit if User Wants To
-                    If docName = "False" Or docName = vbNullString Then Exit Sub
-            Loop While ValidFileName(docName) = False
-          Else
-            Exit Sub 'Cancel
-          End If
-    Loop
-End Select
+            'Exit if User Wants To
+            If docName = "False" Or docName = vbNullString Then
+                Exit Sub
+            End If
+        Loop While ValidFileName(docName) = False
+    Else
+        Exit Sub 'Cancel
+    End If
+Loop
 On Error GoTo 0
+MsgBox (fullFile)
 
 '**********************************************************************************
 'This option sets the markup to show only inline, no comment balloons or formatting
